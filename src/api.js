@@ -1,8 +1,12 @@
 // Single HTTP layer. Components never fetch directly.
+// Token comes from ?token= (QR flow); sent as Bearer (M2 auth).
 const base = import.meta.env.VITE_API_URL || '';
+const token = new URLSearchParams(window.location.search).get('token') || '';
 
 async function req(path, opts = {}) {
-  const res = await fetch(`${base}/api/v1${path}`, opts);
+  const headers = { ...(opts.headers || {}) };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${base}/api/v1${path}`, { ...opts, headers });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || `Request failed: ${res.status}`);
@@ -16,7 +20,7 @@ export const listFiles = (path = '/') =>
   req(`/files?path=${encodeURIComponent(path)}`).then((r) => r.json());
 
 export const downloadUrl = (path) =>
-  `${base}/api/v1/files/download?path=${encodeURIComponent(path)}`;
+  `${base}/api/v1/files/download?path=${encodeURIComponent(path)}${token ? `&token=${token}` : ''}`;
 
 // Upload with XHR for progress events. onProgress(frac) 0..1.
 export function uploadFile(dir, file, onProgress) {
@@ -25,6 +29,7 @@ export function uploadFile(dir, file, onProgress) {
     form.append('file', file);
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `${base}/api/v1/files/upload?path=${encodeURIComponent(dir)}`);
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) onProgress(e.loaded / e.total);
     };
