@@ -1,7 +1,7 @@
 import Icon from './Icon.jsx';
-import { downloadUrl, formatBytes } from '../api.js';
+import { formatBytes } from '../api.js';
 
-export default function FileRow({ entry, dir, selected, onToggle, onOpen }) {
+export default function FileRow({ entry, dir, selected, onToggle, onOpen, onDownload, onDelete }) {
   const isDir = entry.type === 'directory';
   const full = dir === '/' ? `/${entry.name}` : `${dir}/${entry.name}`;
   return (
@@ -17,11 +17,17 @@ export default function FileRow({ entry, dir, selected, onToggle, onOpen }) {
           <Icon name="folder" /> {entry.name}
         </button>
       ) : (
-        <a className="name" href={downloadUrl(full)}>
+        <button className="name" onClick={() => onDownload(full, entry.size)}>
           <Icon name="file" /> {entry.name}
-        </a>
+        </button>
       )}
       <span className="size">{isDir ? '' : formatBytes(entry.size)}</span>
+      {!isDir && (
+        <button aria-label={`Delete ${entry.name}`} title="Delete"
+          onClick={() => { if (window.confirm(`Delete ${entry.name}?`)) onDelete(full); }}>
+          <Icon name="x" />
+        </button>
+      )}
     </div>
   );
 }

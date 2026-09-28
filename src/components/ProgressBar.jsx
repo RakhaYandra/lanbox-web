@@ -11,7 +11,7 @@ export default function ProgressBar({ t, onRetry }) {
         {t.state === 'error' ? (
           <>{t.error} <button onClick={onRetry}>Retry</button></>
         ) : (
-          <>{formatBytes(t.done)} / {formatBytes(t.total)} · {pct}%{t.state === 'done' && t.checksum ? ' · Verified' : ''}</>
+          <>{formatBytes(t.done)} / {formatBytes(t.total)} · {pct}%{t.state === 'done' && t.checksum ? ' · Verified' : ''}{t.state === 'done' && t.note ? ` · ${t.note}` : ''}</>
         )}
       </span>
     </div>

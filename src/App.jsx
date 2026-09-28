@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { createShare, getInfo, listFiles, uploadFile } from './api.js';
+import { createShare, deleteFile, downloadSave, getInfo, listFiles, uploadFile } from './api.js';
 import Header from './components/Header.jsx';
 import Breadcrumb from './components/Breadcrumb.jsx';
 import FileRow from './components/FileRow.jsx';
@@ -24,7 +24,7 @@ export default function App() {
       setEntries(data.entries || []);
       setError('');
     } catch (e) {
-      if (e.code === 401) setNeedLogin(true);
+      if (e.code === 401) { setNeedLogin(true); setAuthed(false); }
       else setError('Server unreachable — check you are on the same Wi-Fi');
     }
   }, []);
@@ -35,7 +35,7 @@ export default function App() {
       setNeedLogin(false);
       setAuthed(true);
     } catch (e) {
-      if (e.code === 401) setNeedLogin(true);
+      if (e.code === 401) { setNeedLogin(true); setAuthed(false); }
       else setError('Server unreachable — check you are on the same Wi-Fi');
     }
   }, []);
@@ -50,6 +50,11 @@ export default function App() {
 
   const toggle = (name) =>
     setSelected((s) => (s.includes(name) ? s.filter((x) => x !== name) : [...s, name]));
+
+  const selectedFiles = () =>
+    entries
+      .filter((e) => e.type === 'file' && selected.includes(e.name))
+      .map((e) => [path === '/' ? `/${e.name}` : `${path}/${e.name}`, e.size]);
 
   const startUpload = (files) => {
     files.forEach((file) => {
@@ -67,7 +72,7 @@ export default function App() {
           refresh(path);
         })
         .catch((e) => {
-          if (e.code === 401) setNeedLogin(true);
+          if (e.code === 401) { setNeedLogin(true); setAuthed(false); }
           setTransfers((ts) => ts.map((t) => (t.id === id ? { ...t, state: 'error', error: e.message } : t)));
         });
     });
@@ -84,8 +89,41 @@ export default function App() {
     }
   };
 
-  if (needLogin && !authed) {
-    return <Login onAuthed={() => { setNeedLogin(false); boot(); }} />;
+  const trackDownload = (name, total, fn) => {
+    const id = `${Date.now()}-${name}`;
+    setTransfers((ts) => [...ts, { id, name, frac: 0, done: 0, total, state: 'running' }]);
+    return fn(
+      (done) => setTransfers((ts) => ts.map((t) => (t.id === id ? { ...t, frac: done / total, done } : t))),
+    )
+      .then((r) => {
+        setTransfers((ts) => ts.map((t) =>
+          t.id === id ? { ...t, state: 'done', frac: 1, done: total, note: r && r.resumed ? 'resumed' : '' } : t,
+        ));
+      })
+      .catch((e) => {
+        if (e.code === 401) { setNeedLogin(true); setAuthed(false); }
+        setTransfers((ts) => ts.map((t) => (t.id === id ? { ...t, state: 'error', error: `${e.message} — retry resumes` } : t)));
+      });
+  };
+
+  // Sequential multi-download (per docs MVP); each keeps its own partial.
+  const downloadPaths = async (paths) => {
+    for (const [full, size] of paths) {
+      await trackDownload(full.split('/').pop(), size, (onP) => downloadSave(full, size, onP));
+    }
+  };
+
+  const removeFile = async (full) => {
+    try {
+      await deleteFile(full);
+      refresh(path);
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  if (needLogin) {
+    return <Login onAuthed={() => { setNeedLogin(false); setAuthed(true); boot(); }} />;
   }
 
   const addr = info ? `${info.address}:${info.port}` : '';
@@ -99,10 +137,17 @@ export default function App() {
         <FileRow key={e.name} entry={e} dir={path}
           selected={selected.includes(e.name)}
           onToggle={() => toggle(e.name)}
-          onOpen={() => e.type === 'directory' && setPath(path === '/' ? `/${e.name}` : `${path}/${e.name}`)} />
+          onOpen={() => e.type === 'directory' && setPath(path === '/' ? `/${e.name}` : `${path}/${e.name}`)}
+          onDownload={(full, size) => downloadPaths([[full, size]])}
+          onDelete={removeFile} />
       ))}
       {selected.length === 1 && (
         <button onClick={shareSelected}>Share {selected[0]} (30 min)</button>
+      )}
+      {selected.length > 1 && (
+        <button onClick={() => downloadPaths(selectedFiles())}>
+          Download {selected.length} files
+        </button>
       )}
       {share && <p className="meta">Share: {share}</p>}
       {transfers.map((t) => (
