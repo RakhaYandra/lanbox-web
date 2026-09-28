@@ -37,7 +37,7 @@ export async function startServer({ port, webDir, limit, seed } = {}) {
       const pin = (log.match(/PIN:\s+(\S+)/) || [])[1];
       if (token && pin) {
         return {
-          base: `http://localhost:${port}`,
+          base: `https://localhost:${port}`,
           token,
           pin,
           async stop() {

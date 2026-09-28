@@ -7,7 +7,9 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:8080',
+      // Backend serves self-signed HTTPS; secure:false skips chain verify
+      // in dev only (real auth is token + PIN).
+      '/api': { target: 'https://localhost:8080', secure: false },
     },
   },
 })

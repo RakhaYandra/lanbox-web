@@ -7,5 +7,7 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   reporter: 'list',
-  use: { headless: true },
+  // Backend uses a per-boot self-signed cert; ignore chain errors in tests
+  // (auth is verified via token + PIN, not PKI).
+  use: { headless: true, ignoreHTTPSErrors: true },
 });
