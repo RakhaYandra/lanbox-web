@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { getInfo, saveAuth } from '../api.js';
 
-export default function Login({ onAuthed }) {
+export default function Login({ onAuthed }: { onAuthed: () => void }) {
   const [token, setToken] = useState('');
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
 
-  const submit = async (e) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     saveAuth(token.trim(), pin.trim());
     try {

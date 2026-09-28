@@ -1,6 +1,11 @@
 import Icon from './Icon.jsx';
 
-export default function Breadcrumb({ path, onNavigate }) {
+interface Props {
+  path: string;
+  onNavigate: (path: string) => void;
+}
+
+export default function Breadcrumb({ path, onNavigate }: Props) {
   const segs = path.split('/').filter(Boolean);
   return (
     <nav aria-label=" breadcrumb">

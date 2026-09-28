@@ -1,4 +1,4 @@
-export default function UploadButton({ disabled, onFiles }) {
+export default function UploadButton({ disabled, onFiles }: { disabled: boolean; onFiles: (files: File[]) => void }) {
   return (
     <label className={disabled ? 'upload disabled' : 'upload'}>
       [ Upload Files ]
@@ -8,7 +8,7 @@ export default function UploadButton({ disabled, onFiles }) {
         hidden
         disabled={disabled}
         onChange={(e) => {
-          onFiles([...e.target.files]);
+          onFiles([...(e.target.files || [])]);
           e.target.value = '';
         }}
       />

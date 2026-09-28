@@ -1,5 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
-import { createShare, deleteFile, downloadSave, getInfo, listFiles, uploadFile } from './api.js';
+import {
+  createShare,
+  deleteFile,
+  downloadSave,
+  getInfo,
+  listFiles,
+  uploadFile,
+  HttpError,
+  type Entry,
+  type ServerInfo,
+  type TransferState,
+} from './api.js';
 import Header from './components/Header.jsx';
 import Breadcrumb from './components/Breadcrumb.jsx';
 import FileRow from './components/FileRow.jsx';
@@ -7,24 +18,32 @@ import UploadButton from './components/UploadButton.jsx';
 import ProgressBar from './components/ProgressBar.jsx';
 import Login from './components/Login.jsx';
 
+function errMsg(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
+function is401(e: unknown): boolean {
+  return e instanceof HttpError && e.code === 401;
+}
+
 export default function App() {
   const [authed, setAuthed] = useState(false);
   const [needLogin, setNeedLogin] = useState(false);
-  const [info, setInfo] = useState(null);
+  const [info, setInfo] = useState<ServerInfo | null>(null);
   const [path, setPath] = useState('/');
-  const [entries, setEntries] = useState([]);
-  const [selected, setSelected] = useState([]);
-  const [transfers, setTransfers] = useState([]);
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [transfers, setTransfers] = useState<TransferState[]>([]);
   const [error, setError] = useState('');
   const [share, setShare] = useState('');
 
-  const refresh = useCallback(async (p) => {
+  const refresh = useCallback(async (p: string) => {
     try {
       const data = await listFiles(p);
       setEntries(data.entries || []);
       setError('');
     } catch (e) {
-      if (e.code === 401) { setNeedLogin(true); setAuthed(false); }
+      if (is401(e)) { setNeedLogin(true); setAuthed(false); }
       else setError('Server unreachable — check you are on the same Wi-Fi');
     }
   }, []);
@@ -35,7 +54,7 @@ export default function App() {
       setNeedLogin(false);
       setAuthed(true);
     } catch (e) {
-      if (e.code === 401) { setNeedLogin(true); setAuthed(false); }
+      if (is401(e)) { setNeedLogin(true); setAuthed(false); }
       else setError('Server unreachable — check you are on the same Wi-Fi');
     }
   }, []);
@@ -48,15 +67,15 @@ export default function App() {
     if (authed) refresh(path);
   }, [path, authed, refresh]);
 
-  const toggle = (name) =>
+  const toggle = (name: string) =>
     setSelected((s) => (s.includes(name) ? s.filter((x) => x !== name) : [...s, name]));
 
-  const selectedFiles = () =>
+  const selectedFiles = (): [string, number][] =>
     entries
       .filter((e) => e.type === 'file' && selected.includes(e.name))
-      .map((e) => [path === '/' ? `/${e.name}` : `${path}/${e.name}`, e.size]);
+      .map((e) => [path === '/' ? `/${e.name}` : `${path}/${e.name}`, e.size ?? 0]);
 
-  const startUpload = (files) => {
+  const startUpload = (files: File[]) => {
     files.forEach((file) => {
       const id = `${Date.now()}-${file.name}`;
       setTransfers((ts) => [...ts, { id, name: file.name, frac: 0, done: 0, total: file.size, state: 'running' }]);
@@ -71,9 +90,9 @@ export default function App() {
           ));
           refresh(path);
         })
-        .catch((e) => {
-          if (e.code === 401) { setNeedLogin(true); setAuthed(false); }
-          setTransfers((ts) => ts.map((t) => (t.id === id ? { ...t, state: 'error', error: e.message } : t)));
+        .catch((e: unknown) => {
+          if (is401(e)) { setNeedLogin(true); setAuthed(false); }
+          setTransfers((ts) => ts.map((t) => (t.id === id ? { ...t, state: 'error', error: errMsg(e) } : t)));
         });
     });
   };
@@ -85,11 +104,11 @@ export default function App() {
       const rec = await createShare(full);
       setShare(`${rec.url}${rec.pin ? ` (PIN: ${rec.pin})` : ''}`);
     } catch (e) {
-      setError(e.message);
+      setError(errMsg(e));
     }
   };
 
-  const trackDownload = (name, total, fn) => {
+  const trackDownload = (name: string, total: number, fn: (onP: (done: number, total: number) => void) => Promise<{ resumed: boolean }>) => {
     const id = `${Date.now()}-${name}`;
     setTransfers((ts) => [...ts, { id, name, frac: 0, done: 0, total, state: 'running' }]);
     return fn(
@@ -100,25 +119,25 @@ export default function App() {
           t.id === id ? { ...t, state: 'done', frac: 1, done: total, note: r && r.resumed ? 'resumed' : '' } : t,
         ));
       })
-      .catch((e) => {
-        if (e.code === 401) { setNeedLogin(true); setAuthed(false); }
-        setTransfers((ts) => ts.map((t) => (t.id === id ? { ...t, state: 'error', error: `${e.message} — retry resumes` } : t)));
+      .catch((e: unknown) => {
+        if (is401(e)) { setNeedLogin(true); setAuthed(false); }
+        setTransfers((ts) => ts.map((t) => (t.id === id ? { ...t, state: 'error', error: `${errMsg(e)} — retry resumes` } : t)));
       });
   };
 
   // Sequential multi-download (per docs MVP); each keeps its own partial.
-  const downloadPaths = async (paths) => {
+  const downloadPaths = async (paths: [string, number][]) => {
     for (const [full, size] of paths) {
-      await trackDownload(full.split('/').pop(), size, (onP) => downloadSave(full, size, onP));
+      await trackDownload(full.split('/').pop() || full, size, (onP) => downloadSave(full, size, onP));
     }
   };
 
-  const removeFile = async (full) => {
+  const removeFile = async (full: string) => {
     try {
       await deleteFile(full);
       refresh(path);
     } catch (e) {
-      setError(e.message);
+      setError(errMsg(e));
     }
   };
 

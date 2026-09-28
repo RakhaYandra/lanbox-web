@@ -1,7 +1,17 @@
 import Icon from './Icon.jsx';
-import { formatBytes } from '../api.js';
+import { formatBytes, type Entry } from '../api.js';
 
-export default function FileRow({ entry, dir, selected, onToggle, onOpen, onDownload, onDelete }) {
+interface Props {
+  entry: Entry;
+  dir: string;
+  selected: boolean;
+  onToggle: () => void;
+  onOpen: () => void;
+  onDownload: (full: string, size: number) => void;
+  onDelete: (full: string) => void;
+}
+
+export default function FileRow({ entry, dir, selected, onToggle, onOpen, onDownload, onDelete }: Props) {
   const isDir = entry.type === 'directory';
   const full = dir === '/' ? `/${entry.name}` : `${dir}/${entry.name}`;
   return (
@@ -17,11 +27,11 @@ export default function FileRow({ entry, dir, selected, onToggle, onOpen, onDown
           <Icon name="folder" /> {entry.name}
         </button>
       ) : (
-        <button className="name" onClick={() => onDownload(full, entry.size)}>
+        <button className="name" onClick={() => onDownload(full, entry.size ?? 0)}>
           <Icon name="file" /> {entry.name}
         </button>
       )}
-      <span className="size">{isDir ? '' : formatBytes(entry.size)}</span>
+      <span className="size">{isDir ? '' : formatBytes(entry.size ?? 0)}</span>
       {!isDir && (
         <button aria-label={`Delete ${entry.name}`} title="Delete"
           onClick={() => { if (window.confirm(`Delete ${entry.name}?`)) onDelete(full); }}>
