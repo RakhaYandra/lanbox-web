@@ -13,10 +13,10 @@ let want;
 
 test.beforeAll(async () => {
   buildServer();
-  srv = await startServer({ port: 18203, webDir, limit: '20MB/s', seed: { 'e2e.txt': 'seed' } });
+  srv = await startServer({ port: 18203, webDir, limit: '5MB/s', seed: { 'e2e.txt': 'seed' } });
   workdir = mkdtempSync(path.join(tmpdir(), 'lanbox-e2e-resume-'));
-  const big = path.join(workdir, 'big30');
-  writeFileSync(big, randomBytes(30 * 1024 * 1024));
+  const big = path.join(workdir, 'big100');
+  writeFileSync(big, randomBytes(100 * 1024 * 1024));
   want = createHash('sha256').update(readFileSync(big)).digest('hex');
 });
 
@@ -33,22 +33,22 @@ test('reload mid-download resumes with matching hash', async ({ page }) => {
   await expect(page.getByText('e2e.txt')).toBeVisible();
 
   // put big30 on the server through the UI itself
-  await page.setInputFiles('input[type=file]', path.join(workdir, 'big30'));
+  await page.setInputFiles('input[type=file]', path.join(workdir, 'big100'));
   await expect(page.getByText('Verified')).toBeVisible({ timeout: 30000 });
-  await expect(page.getByRole('button', { name: 'big30', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'big100', exact: true })).toBeVisible();
 
-  await page.click('button:has-text("big30")');
+  await page.click('button:has-text("big100")');
   await page.waitForFunction(
-    () => [...document.querySelectorAll('.progress .pmeta')].some((el) => el.textContent.includes('/ 30')),
+    () => [...document.querySelectorAll('.progress .pmeta')].some((el) => el.textContent.includes('/ 100')),
     null, { timeout: 20000 },
   );
   await page.waitForTimeout(2500);
   await page.reload();
-  await expect(page.getByText('big30')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText('big100')).toBeVisible({ timeout: 15000 });
 
   const [dl] = await Promise.all([
     page.waitForEvent('download', { timeout: 90000 }),
-    page.click('button:has-text("big30")'),
+    page.click('button:has-text("big100")'),
   ]);
   const gotHash = createHash('sha256').update(readFileSync(await dl.path())).digest('hex');
   expect(gotHash).toBe(want);
