@@ -32,7 +32,13 @@ export async function startServer({ port, webDir, limit, seed } = {}) {
   const args = ['serve', '--dir', dataDir, '--port', String(port)];
   if (webDir) args.push('--web-dir', webDir);
   if (limit) args.push('--limit', limit);
-  const proc = spawn(binPath, args, { stdio: ['ignore', logFd, logFd] });
+  // Isolated HOME: PID file + history DB must not touch the real home
+  // (history would otherwise leak across runs and pollute assertions).
+  const fakeHome = mkdtempSync(path.join(tmpdir(), 'lanbox-e2e-home-'));
+  const proc = spawn(binPath, args, {
+    stdio: ['ignore', logFd, logFd],
+    env: { ...process.env, HOME: fakeHome },
+  });
   const { readFileSync } = await import('node:fs');
   const deadline = Date.now() + 10000;
   for (;;) {
@@ -49,6 +55,7 @@ export async function startServer({ port, webDir, limit, seed } = {}) {
             proc.kill('SIGINT');
             await new Promise((r) => setTimeout(r, 500));
             rmSync(dir, { recursive: true, force: true });
+            rmSync(fakeHome, { recursive: true, force: true });
           },
         };
       }

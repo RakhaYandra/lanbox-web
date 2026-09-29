@@ -173,9 +173,22 @@ export interface ServerTransfer {
   started_at: string;
 }
 
+export interface HistoryEntry {
+  id: number;
+  name: string;
+  kind: string;
+  size: number;
+  duration_ms: number;
+  sha256?: string;
+  status: string;
+  finished_at: string;
+}
+
+export const listHistory = (limit = 20, offset = 0): Promise<{ entries: HistoryEntry[] }> =>
+  req(`/history?limit=${limit}&offset=${offset}`).then((r) => r.json());
+
 export const listTransfers = (): Promise<{ transfers: ServerTransfer[] }> =>
   req('/transfers').then((r) => r.json());
-
 export const cancelTransfer = (id: string): Promise<{ cancelled: string }> =>
   req(`/transfers/${id}`, { method: 'DELETE' }).then((r) => r.json());
 
