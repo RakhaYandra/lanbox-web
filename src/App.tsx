@@ -18,6 +18,7 @@ import UploadButton from './components/UploadButton.jsx';
 import ProgressBar from './components/ProgressBar.jsx';
 import Login from './components/Login.jsx';
 import Preview from './components/Preview.jsx';
+import TransfersPanel from './components/TransfersPanel.jsx';
 import { previewUrl } from './api.js';
 
 function errMsg(e: unknown): string {
@@ -188,6 +189,7 @@ export default function App() {
           onRetry={() => setTransfers((ts) => ts.filter((x) => x.id !== t.id))} />
       ))}
       <UploadButton disabled={false} onFiles={startUpload} />
+      {authed && <TransfersPanel />}
     </main>
   );
 }

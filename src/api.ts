@@ -165,6 +165,20 @@ export function formatBytes(n: number): string {
   return `${n.toFixed(n >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
+export interface ServerTransfer {
+  id: string;
+  name: string;
+  bytes: number;
+  total: number;
+  started_at: string;
+}
+
+export const listTransfers = (): Promise<{ transfers: ServerTransfer[] }> =>
+  req('/transfers').then((r) => r.json());
+
+export const cancelTransfer = (id: string): Promise<{ cancelled: string }> =>
+  req(`/transfers/${id}`, { method: 'DELETE' }).then((r) => r.json());
+
 export const deleteFile = (path: string): Promise<{ deleted: string }> =>
   req(`/files?path=${encodeURIComponent(path)}`, { method: 'DELETE' }).then((r) => r.json());
 
