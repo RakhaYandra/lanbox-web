@@ -20,7 +20,12 @@ export async function startServer({ port, webDir, limit, seed } = {}) {
   const { openSync, mkdirSync, writeFileSync } = await import('node:fs');
   mkdirSync(dataDir, { recursive: true });
   for (const [name, content] of Object.entries(seed || {})) {
-    writeFileSync(path.join(dataDir, name), content);
+    const p = path.join(dataDir, name);
+    if (name.endsWith('/')) {
+      mkdirSync(p, { recursive: true });
+    } else {
+      writeFileSync(p, content);
+    }
   }
   const logPath = path.join(dir, 'serve.log');
   const logFd = openSync(logPath, 'w');

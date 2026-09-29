@@ -123,11 +123,11 @@ export function previewable(name: string): boolean {
   return previewKind(name) !== 'none';
 }
 
-export const createShare = (path: string, expiresMinutes = 30): Promise<ShareRecord> =>
+export const createShare = (path: string, expiresMinutes = 30, allowUpload = false): Promise<ShareRecord> =>
   req('/shares', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ path, expires_minutes: expiresMinutes }),
+    body: JSON.stringify({ path, expires_minutes: expiresMinutes, allow_upload: allowUpload }),
   }).then((r) => r.json());
 
 // Upload with XHR for progress events. onProgress(frac) 0..1.

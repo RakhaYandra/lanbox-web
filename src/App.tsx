@@ -100,16 +100,19 @@ export default function App() {
     });
   };
 
-  const shareSelected = async () => {
+  const shareSelected = async (allowUpload: boolean) => {
     if (selected.length !== 1) return;
     const full = path === '/' ? `/${selected[0]}` : `${path}/${selected[0]}`;
     try {
-      const rec = await createShare(full);
+      const rec = await createShare(full, 30, allowUpload);
       setShare(`${rec.url}${rec.pin ? ` (PIN: ${rec.pin})` : ''}`);
     } catch (e) {
       setError(errMsg(e));
     }
   };
+
+  const selectedIsDir = () =>
+    selected.length === 1 && entries.some((e) => e.name === selected[0] && e.type === 'directory');
 
   const trackDownload = (name: string, total: number, fn: (onP: (done: number, total: number) => void) => Promise<{ resumed: boolean }>) => {
     const id = `${Date.now()}-${name}`;
@@ -168,8 +171,11 @@ export default function App() {
         <Preview name={preview.split('/').pop() || preview}
           url={previewUrl(preview)} onClose={() => setPreview(null)} />
       )}
-      {selected.length === 1 && (
-        <button onClick={shareSelected}>Share {selected[0]} (30 min)</button>
+      {selected.length === 1 && !selectedIsDir() && (
+        <button onClick={() => shareSelected(false)}>Share {selected[0]} (30 min)</button>
+      )}
+      {selectedIsDir() && (
+        <button onClick={() => shareSelected(true)}>Request files to {selected[0]}</button>
       )}
       {selected.length > 1 && (
         <button onClick={() => downloadPaths(selectedFiles())}>
