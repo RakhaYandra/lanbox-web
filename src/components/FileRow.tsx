@@ -1,5 +1,5 @@
 import Icon from './Icon.jsx';
-import { formatBytes, type Entry } from '../api.js';
+import { formatBytes, previewable, type Entry } from '../api.js';
 
 interface Props {
   entry: Entry;
@@ -9,9 +9,10 @@ interface Props {
   onOpen: () => void;
   onDownload: (full: string, size: number) => void;
   onDelete: (full: string) => void;
+  onPreview: (full: string) => void;
 }
 
-export default function FileRow({ entry, dir, selected, onToggle, onOpen, onDownload, onDelete }: Props) {
+export default function FileRow({ entry, dir, selected, onToggle, onOpen, onDownload, onDelete, onPreview }: Props) {
   const isDir = entry.type === 'directory';
   const full = dir === '/' ? `/${entry.name}` : `${dir}/${entry.name}`;
   return (
@@ -32,6 +33,11 @@ export default function FileRow({ entry, dir, selected, onToggle, onOpen, onDown
         </button>
       )}
       <span className="size">{isDir ? '' : formatBytes(entry.size ?? 0)}</span>
+      {!isDir && previewable(entry.name) && (
+        <button aria-label={`Preview ${entry.name}`} title="Preview" onClick={() => onPreview(full)}>
+          <Icon name="eye" />
+        </button>
+      )}
       {!isDir && (
         <button aria-label={`Delete ${entry.name}`} title="Delete"
           onClick={() => { if (window.confirm(`Delete ${entry.name}?`)) onDelete(full); }}>

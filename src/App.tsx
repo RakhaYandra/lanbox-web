@@ -17,6 +17,8 @@ import FileRow from './components/FileRow.jsx';
 import UploadButton from './components/UploadButton.jsx';
 import ProgressBar from './components/ProgressBar.jsx';
 import Login from './components/Login.jsx';
+import Preview from './components/Preview.jsx';
+import { previewUrl } from './api.js';
 
 function errMsg(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
@@ -36,6 +38,7 @@ export default function App() {
   const [transfers, setTransfers] = useState<TransferState[]>([]);
   const [error, setError] = useState('');
   const [share, setShare] = useState('');
+  const [preview, setPreview] = useState<string | null>(null);
 
   const refresh = useCallback(async (p: string) => {
     try {
@@ -158,8 +161,13 @@ export default function App() {
           onToggle={() => toggle(e.name)}
           onOpen={() => e.type === 'directory' && setPath(path === '/' ? `/${e.name}` : `${path}/${e.name}`)}
           onDownload={(full, size) => downloadPaths([[full, size]])}
-          onDelete={removeFile} />
+          onDelete={removeFile}
+          onPreview={(full) => setPreview(full)} />
       ))}
+      {preview && (
+        <Preview name={preview.split('/').pop() || preview}
+          url={previewUrl(preview)} onClose={() => setPreview(null)} />
+      )}
       {selected.length === 1 && (
         <button onClick={shareSelected}>Share {selected[0]} (30 min)</button>
       )}

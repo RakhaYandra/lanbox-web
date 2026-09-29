@@ -94,8 +94,34 @@ export const listFiles = (path = '/'): Promise<FileList> =>
 
 export const downloadUrl = (path: string): string => {
   const token = getToken();
-  return `${base}/api/v1/files/download?path=${encodeURIComponent(path)}${token ? `&token=${token}` : ''}`;
+  const pin = getPin();
+  // Query form (not headers) so <img>/<iframe>/<a> loads authenticate too.
+  return `${base}/api/v1/files/download?path=${encodeURIComponent(path)}${token ? `&token=${token}` : ''}${pin ? `&pin=${pin}` : ''}`;
 };
+
+export const previewUrl = (path: string): string => `${downloadUrl(path)}&preview=1`;
+
+// fetchPreviewText GETs a preview URL with auth (plain fetch would 401
+// when the server requires token/PIN).
+export async function fetchPreviewText(url: string): Promise<string> {
+  const res = await fetch(url, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`Preview failed: ${res.status}`);
+  return (await res.text()).slice(0, 200_000);
+}
+
+export type PreviewKind = 'image' | 'text' | 'pdf' | 'none';
+
+export function previewKind(name: string): PreviewKind {
+  const ext = name.split('.').pop()?.toLowerCase() || '';
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) return 'image';
+  if (['txt', 'md', 'json', 'log', 'csv'].includes(ext)) return 'text';
+  if (ext === 'pdf') return 'pdf';
+  return 'none';
+}
+
+export function previewable(name: string): boolean {
+  return previewKind(name) !== 'none';
+}
 
 export const createShare = (path: string, expiresMinutes = 30): Promise<ShareRecord> =>
   req('/shares', {
